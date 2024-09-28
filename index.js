@@ -48,28 +48,42 @@ app.post("/generate-description", async (req, res) => {
       ],
       response_format: {
         type: "json_schema",
-        name: "decription",
-        schema: {
-          type: object,
-          properties: {
-            title: string,
-            mainDescription: string,
-            propertyHighlights: string,
-            additionalFeatures: string,
-            locationAdvantages: string,
-            conclusion: string,
+        json_schema: {
+          name: "decription",
+          schema: {
+            type: "object",
+            properties: {
+              title: {
+                type: "string",
+              },
+              mainDescription: {
+                type: "string",
+              },
+              propertyHighlights: {
+                type: "string",
+              },
+              additionalFeatures: {
+                type: "string",
+              },
+              locationAdvantages: {
+                type: "string",
+              },
+              conclusion: {
+                type: "string",
+              },
+            },
+            required: [
+              "title",
+              "mainDescription",
+              "propertyHighlights",
+              "additionalFeatures",
+              "locationAdvantages",
+              "conclusion",
+            ],
+            additionalProperties: false,
           },
-          required: [
-            "title",
-            "mainDescription",
-            "propertyHighlights",
-            "additionalFeatures",
-            "locationAdvatages",
-            "conclusion",
-          ],
-          additionalProperties: false,
+          strict: true,
         },
-        strict: true,
       },
     });
 
