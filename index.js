@@ -40,14 +40,41 @@ app.post("/generate-description", async (req, res) => {
     // Call OpenAI to generate the description
     const response = await openai.chat.completions.create({
       model: "gpt-4o-mini", // Or whichever model you prefer
-      messages: [{
-        role: "user",
-        content: prompt,
-      }],
+      messages: [
+        {
+          role: "user",
+          content: prompt,
+        },
+      ],
+      response_format: {
+        type: "json_schema",
+        name: "decription",
+        schema: {
+          type: object,
+          properties: {
+            title: string,
+            mainDescription: string,
+            propertyHighlights: string,
+            additionalFeatures: string,
+            locationAdvantages: string,
+            conclusion: string,
+          },
+          required: [
+            "title",
+            "mainDescription",
+            "propertyHighlights",
+            "additionalFeatures",
+            "locationAdvatages",
+            "conclusion",
+          ],
+          additionalProperties: false,
+        },
+        strict: true,
+      },
     });
 
     // Send the AI-generated description back to the client
-    const description = response.choices[0].message.content
+    const description = JSON.parse(response.choices[0].message.content);
     res.status(200).json({ description });
   } catch (error) {
     console.error("Error generating property description:", error);
