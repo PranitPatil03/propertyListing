@@ -42,15 +42,13 @@ app.post("/generate-description", async (req, res) => {
       
       The description should be professional, optimized for attracting potential buyers or renters, and should include any inferred details where appropriate. It should also include relevant area information.
       
-      Please provide the response in JSON format with the following fields:
-      {
-        "title": "A catchy title for the listing",
-        "mainDescription": "The main body of the property description",
-        "propertyHighlights": "A list of key property highlights",
-        "additionalFeatures": "Any additional notable features",
-        "locationAdvantages": "Advantages of the property's location",
-        "conclusion": "A concluding statement to encourage interest"
-      }
+      Please provide the response in the following format:
+      Title: A catchy title for the listing
+      Main Description: The main body of the property description
+      Property Highlights: A list of key property highlights
+      Additional Features: Any additional notable features
+      Location Advantages: Advantages of the property's location
+      Conclusion: A concluding statement to encourage interest
     `;
 
     const response = await openai.chat.completions.create({
@@ -64,40 +62,22 @@ app.post("/generate-description", async (req, res) => {
     });
 
     const descriptionText = response.choices[0].message.content;
-    let description;
+    
+    const sections = descriptionText.split('\n\n');
+    const description = {
+      title: sections[0].replace(/^(?:\*\*)?Title:(?:\*\*)?\s*/, '').trim(),
+      mainDescription: sections[1].replace(/^(?:\*\*)?Main Description:(?:\*\*)?\s*/, '').trim(),
+      propertyHighlights: sections[2].replace(/^(?:\*\*)?Property Highlights:(?:\*\*)?\s*/, '').trim(),
+      additionalFeatures: sections[3].replace(/^(?:\*\*)?Additional Features:(?:\*\*)?\s*/, '').trim(),
+      locationAdvantages: sections[4].replace(/^(?:\*\*)?Location Advantages:(?:\*\*)?\s*/, '').trim(),
+      conclusion: sections[5].replace(/^(?:\*\*)?Conclusion:(?:\*\*)?\s*/, '').trim(),
+    };
 
-    try {
-      description = JSON.parse(descriptionText);
-    } catch (parseError) {
-      console.error("Error parsing JSON response:", parseError);
-      description = {
-        title: "",
-        mainDescription: descriptionText,
-        propertyHighlights: "",
-        additionalFeatures: "",
-        locationAdvantages: "",
-        conclusion: "",
-      };
-    }
-
-    const requiredFields = [
-      "title",
-      "mainDescription",
-      "propertyHighlights",
-      "additionalFeatures",
-      "locationAdvantages",
-      "conclusion",
-    ];
-    for (const field of requiredFields) {
-      if (!description[field]) {
-        description[field] = "";
-      }
-    }
-
-    res.status(200).json({ description });
+    console.log("description", description);
+    res.status(200).json({ description }); 
   } catch (error) {
     console.error("Error generating property description:", error);
-    res.status(500).json({ message: "Error generating property description" });
+    res.status(500).json({ message: "Error generating property description", error: error.message });
   }
 });
 
