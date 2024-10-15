@@ -1,7 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 const dotenv = require("dotenv");
-const OpenAIApi = require("openai");
+const { OpenAI } = require("openai");
 
 dotenv.config();
 
@@ -10,85 +10,90 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-const openai = new OpenAIApi(process.env.OPENAI_API_KEY);
+const openai = new OpenAI(process.env.OPENAI_API_KEY);
 
 app.get("/", (req, res) => {
   res.send("server is healthy");
 });
-// Route to generate the property listing description
+
 app.post("/generate-description", async (req, res) => {
   try {
-    const { listingType, location, propertyDetails, keySellingPoints } =
-      req.body;
+    const {
+      listingType,
+      propertyAddress,
+      propertyType,
+      locationAmenities,
+      propertyDescription,
+      interiorFeatures,
+      exteriorFeatures,
+    } = req.body;
 
-    // Ensure all required fields are provided
-    if (!listingType || !location || !propertyDetails || !keySellingPoints) {
-      return res.status(400).json({ message: "Missing required fields" });
-    }
+    console.log("req.body", req.body);
 
-    // Create the prompt based on the input
     const prompt = `
       Create a detailed and compelling property listing description based on the following inputs:
       Type of listing: ${listingType}.
-      Property Location: ${location}.
-      Property Details: ${propertyDetails}.
-      Key Selling Points: ${keySellingPoints}.
+      Property Address: ${propertyAddress}.
+      Property Type: ${propertyType}.
+      Location and Nearby Amenities: ${locationAmenities}.
+      Property Description: ${propertyDescription}.
+      Interior Features: ${interiorFeatures}.
+      Exterior Features: ${exteriorFeatures}.
       
       The description should be professional, optimized for attracting potential buyers or renters, and should include any inferred details where appropriate. It should also include relevant area information.
+      
+      Please provide the response in JSON format with the following fields:
+      {
+        "title": "A catchy title for the listing",
+        "mainDescription": "The main body of the property description",
+        "propertyHighlights": "A list of key property highlights",
+        "additionalFeatures": "Any additional notable features",
+        "locationAdvantages": "Advantages of the property's location",
+        "conclusion": "A concluding statement to encourage interest"
+      }
     `;
 
-    // Call OpenAI to generate the description
     const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini", // Or whichever model you prefer
+      model: "gpt-4o-mini",
       messages: [
         {
           role: "user",
           content: prompt,
         },
       ],
-      response_format: {
-        type: "json_schema",
-        json_schema: {
-          name: "decription",
-          schema: {
-            type: "object",
-            properties: {
-              title: {
-                type: "string",
-              },
-              mainDescription: {
-                type: "string",
-              },
-              propertyHighlights: {
-                type: "string",
-              },
-              additionalFeatures: {
-                type: "string",
-              },
-              locationAdvantages: {
-                type: "string",
-              },
-              conclusion: {
-                type: "string",
-              },
-            },
-            required: [
-              "title",
-              "mainDescription",
-              "propertyHighlights",
-              "additionalFeatures",
-              "locationAdvantages",
-              "conclusion",
-            ],
-            additionalProperties: false,
-          },
-          strict: true,
-        },
-      },
     });
 
-    // Send the AI-generated description back to the client
-    const description = JSON.parse(response.choices[0].message.content);
+    const descriptionText = response.choices[0].message.content;
+    let description;
+
+    try {
+      description = JSON.parse(descriptionText);
+    } catch (parseError) {
+      console.error("Error parsing JSON response:", parseError);
+      description = {
+        title: "",
+        mainDescription: descriptionText,
+        propertyHighlights: "",
+        additionalFeatures: "",
+        locationAdvantages: "",
+        conclusion: "",
+      };
+    }
+
+    const requiredFields = [
+      "title",
+      "mainDescription",
+      "propertyHighlights",
+      "additionalFeatures",
+      "locationAdvantages",
+      "conclusion",
+    ];
+    for (const field of requiredFields) {
+      if (!description[field]) {
+        description[field] = "";
+      }
+    }
+
     res.status(200).json({ description });
   } catch (error) {
     console.error("Error generating property description:", error);
