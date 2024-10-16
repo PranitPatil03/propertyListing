@@ -2,26 +2,31 @@ const express = require("express");
 const cors = require("cors");
 const dotenv = require("dotenv");
 const { OpenAI } = require("openai");
+const nodemailer = require("nodemailer");
 
 dotenv.config();
 
 const app = express();
-app.use(cors());
 app.use(express.json());
 
 const openai = new OpenAI(process.env.OPENAI_API_KEY);
 
-const allowedOrigins = ['https://brochure-pro.vercel.app', 'http://localhost:3001'];
+const allowedOrigins = [
+  "https://brochure-pro.vercel.app",
+  "http://localhost:3000",
+];
 
-app.use(cors({
+app.use(
+  cors({
     origin: function (origin, callback) {
-        if (!origin || allowedOrigins.indexOf(origin) !== -1) {
-            callback(null, true);
-        } else {
-            callback(new Error('Not allowed by CORS'));
-        }
-    }
-}));
+      if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
+  })
+);
 
 const validateInput = (req, res, next) => {
   const requiredFields = [
@@ -100,6 +105,132 @@ app.post("/generate-description", validateInput, async (req, res) => {
     res
       .status(500)
       .json({ error: "Error generating property brochure content" });
+  }
+});
+
+const transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
+  },
+});
+
+const formatEmailContent = (brochureContent) => {
+  const { headline, tagline, overview, keyFeatures, end, callToAction } =
+    JSON.parse(brochureContent);
+
+  return `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>${headline}</title>
+      <style>
+        body {
+          font-family: 'Helvetica Neue', Arial, sans-serif;
+          line-height: 1.6;
+          color: #333;
+          max-width: 600px;
+          margin: 0 auto;
+          padding: 20px;
+          background-color: #f4f4f9;
+        }
+        h1 {
+          color: #2c3e50;
+          font-size: 28px;
+          margin-bottom: 10px;
+          text-align: center;
+        }
+        h2 {
+          color: #34495e;
+          font-size: 20px;
+          font-style: italic;
+          margin-bottom: 20px;
+          text-align: center;
+        }
+        h3 {
+          color: #2980b9;
+          font-size: 22px;
+          margin-top: 30px;
+          margin-bottom: 10px;
+        }
+        ul {
+          padding-left: 20px;
+          list-style-type: none;
+        }
+        ul li {
+          background: #ecf0f1;
+          margin: 5px 0;
+          padding: 10px;
+          border-radius: 5px;
+        }
+        .cta {
+          background-color: #3498db;
+          color: white;
+          padding: 12px 25px;
+          text-decoration: none;
+          display: inline-block;
+          border-radius: 5px;
+          margin-top: 20px;
+          text-align: center;
+          font-weight: bold;
+        }
+        .cta:hover {
+          background-color: #2980b9;
+        }
+        .footer {
+          text-align: center;
+          margin-top: 40px;
+          font-size: 12px;
+          color: #7f8c8d;
+        }
+        .key-features {
+          color: #000000;
+        }
+      </style>
+    </head>
+    <body>
+      <h1>${headline}</h1>
+      <h2>${tagline}</h2>
+      <p>${overview}</p>
+      <h3 class="key-features">Key Features:</h3>
+      <ul>
+        ${keyFeatures.map((feature) => `<li>${feature}</li>`).join("")}
+      </ul>
+      <p>${end}</p>
+      <p><strong>${callToAction}</strong></p>
+      <div class="footer">
+        <p>Thank you for considering our property. We look forward to assisting you.</p>
+      </div>
+    </body>
+    </html>
+  `;
+};
+
+app.post("/send-email", async (req, res) => {
+  const { to, subject, brochureContent } = req.body;
+
+  if (!brochureContent) {
+    return res.status(400).json({ error: "Brochure content is required" });
+  }
+
+  const emailBody = formatEmailContent(brochureContent);
+
+  const mailOptions = {
+    from: process.env.EMAIL_USER,
+    to,
+    subject,
+    html: emailBody,
+  };
+
+  try {
+    await transporter.sendMail(mailOptions);
+    res.status(200).json({ message: "Email sent successfully!" });
+  } catch (error) {
+    console.error("Error sending email:", error);
+    res.status(500).json({ error: "Failed to send email" });
   }
 });
 
