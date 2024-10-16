@@ -7,10 +7,22 @@ dotenv.config();
 
 const app = express();
 
+// app.use(cors({
+//   origin: 'https://brochure-pro.vercel.app'
+// }));
+// app.use(express.json());
+
+const allowedOrigins = ['https://brochure-pro.vercel.app', 'http://localhost:3001'];
+
 app.use(cors({
-  origin: 'https://brochure-pro.vercel.app'
+    origin: function (origin, callback) {
+        if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    }
 }));
-app.use(express.json());
 
 const openai = new OpenAI(process.env.OPENAI_API_KEY);
 
