@@ -6,11 +6,10 @@ const { OpenAI } = require("openai");
 dotenv.config();
 
 const app = express();
+app.use(cors());
+app.use(express.json());
 
-// app.use(cors({
-//   origin: 'https://brochure-pro.vercel.app'
-// }));
-// app.use(express.json());
+const openai = new OpenAI(process.env.OPENAI_API_KEY);
 
 const allowedOrigins = ['https://brochure-pro.vercel.app', 'http://localhost:3001'];
 
@@ -24,79 +23,88 @@ app.use(cors({
     }
 }));
 
-const openai = new OpenAI(process.env.OPENAI_API_KEY);
+const validateInput = (req, res, next) => {
+  const requiredFields = [
+    "listingType",
+    "propertyAddress",
+    "propertyType",
+    "locationAmenities",
+    "propertyDescription",
+    "interiorFeatures",
+    "exteriorFeatures",
+  ];
+
+  for (const field of requiredFields) {
+    if (!req.body[field]) {
+      return res
+        .status(400)
+        .json({ error: `Missing required field: ${field}` });
+    }
+  }
+  next();
+};
+
+const generateOptimizedBrochurePrompt = (data) => `
+As an expert real estate copywriter, create compelling and concise brochure content for the following property:
+
+Property Details:
+- Listing Type: ${data.listingType}
+- Address: ${data.propertyAddress}
+- Property Type: ${data.propertyType}
+- Location and Amenities: ${data.locationAmenities}
+- Property Description: ${data.propertyDescription}
+- Interior Features: ${data.interiorFeatures}
+- Exterior Features: ${data.exteriorFeatures}
+
+Create engaging, balanced content for a professional property brochure. The content should be concise yet impactful, highlighting the property's key features and appeal. Focus on the most attractive aspects and unique selling points.
+
+Provide the brochure content in the following JSON format:
+
+{
+  "headline": "A catchy, attention-grabbing headline (max 10 words)",
+  "tagline": "A brief, compelling tagline that complements the headline (max 15 words)",
+  "overview": "A concise summary highlighting key features and overall appeal (2-3 sentences)",
+  "keyFeatures": [
+    "5-6 standout features or selling points of the property (bullet points)"
+  ],
+  "end": "A concise yet comprehensive description combining location highlights, interior features, exterior and outdoor amenities, and any additional perks. Focus on the most impressive and unique aspects of each category. (3-4 sentences)",
+  "callToAction": "A compelling call-to-action statement encouraging potential buyers to take the next step (1 sentence)"
+}
+
+Use vivid, descriptive language to create desire for the property. Be concise but impactful, focusing on the most attractive aspects. Ensure the content is factual, professional, and optimized for marketing purposes. The output should be a valid JSON object that can be parsed directly.
+`;
 
 app.get("/", (req, res) => {
-  res.send("server is healthy");
+  res.send("Server is healthy");
 });
 
-app.post("/generate-description", async (req, res) => {
+app.post("/generate-description", validateInput, async (req, res) => {
   try {
-    const {
-      listingType,
-      propertyAddress,
-      propertyType,
-      locationAmenities,
-      propertyDescription,
-      interiorFeatures,
-      exteriorFeatures,
-    } = req.body;
-
-    console.log("req.body", req.body);
-
-    const prompt = `
-      Create a detailed and compelling property listing description based on the following inputs:
-      Type of listing: ${listingType}.
-      Property Address: ${propertyAddress}.
-      Property Type: ${propertyType}.
-      Location and Nearby Amenities: ${locationAmenities}.
-      Property Description: ${propertyDescription}.
-      Interior Features: ${interiorFeatures}.
-      Exterior Features: ${exteriorFeatures}.
-      
-      The description should be professional, optimized for attracting potential buyers or renters, and should include any inferred details where appropriate. It should also include relevant area information.
-      
-      Please provide the response in the following format:
-      Title: A catchy title for the listing
-      Main Description: The main body of the property description
-      Property Highlights: A list of key property highlights
-      Additional Features: Any additional notable features
-      Location Advantages: Advantages of the property's location
-      Conclusion: A concluding statement to encourage interest
-    `;
+    const prompt = generateOptimizedBrochurePrompt(req.body);
+    console.log("Optimized prompt:", prompt);
 
     const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        {
-          role: "user",
-          content: prompt,
-        },
-      ],
+      model: "gpt-4",
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0.7,
+      max_tokens: 800,
     });
 
-    const descriptionText = response.choices[0].message.content;
-    
-    const sections = descriptionText.split('\n\n');
-    const description = {
-      title: sections[0].replace(/^(?:\*\*)?Title:(?:\*\*)?\s*/, '').trim(),
-      mainDescription: sections[1].replace(/^(?:\*\*)?Main Description:(?:\*\*)?\s*/, '').trim(),
-      propertyHighlights: sections[2].replace(/^(?:\*\*)?Property Highlights:(?:\*\*)?\s*/, '').trim(),
-      additionalFeatures: sections[3].replace(/^(?:\*\*)?Additional Features:(?:\*\*)?\s*/, '').trim(),
-      locationAdvantages: sections[4].replace(/^(?:\*\*)?Location Advantages:(?:\*\*)?\s*/, '').trim(),
-      conclusion: sections[5].replace(/^(?:\*\*)?Conclusion:(?:\*\*)?\s*/, '').trim(),
-    };
+    const brochureContent = response.choices[0].message.content;
 
-    console.log("description", description);
-    res.status(200).json({ description }); 
+    const jsonResponse = JSON.parse(brochureContent);
+
+    res.status(200).json(jsonResponse);
   } catch (error) {
-    console.error("Error generating property description:", error);
-    res.status(500).json({ message: "Error generating property description", error: error.message });
+    console.error("Error generating property brochure content:", error);
+    res
+      .status(500)
+      .json({ error: "Error generating property brochure content" });
   }
 });
 
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
-  console.log(`server listening http://localhost:${PORT}`);
+  console.log(`Server listening on http://localhost:${PORT}`);
 });
