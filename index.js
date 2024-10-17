@@ -104,18 +104,27 @@ app.get("/", (req, res) => {
 app.post("/generate-description", validateInput, async (req, res) => {
   try {
     const prompt = generateOptimizedBrochurePrompt(req.body);
-    console.log("Optimized prompt:", prompt);
 
     const response = await openai.chat.completions.create({
-      model: "gpt-4",
-      messages: [{ role: "user", content: prompt }],
-      temperature: 0.7,
-      max_tokens: 800,
+      model: "gpt-4o-mini",
+      messages: [{ role: "system", content: prompt }],
     });
 
-    const brochureContent = response.choices[0].message.content;
+    let brochureContent = response.choices[0].message.content;
 
-    const jsonResponse = JSON.parse(brochureContent);
+    brochureContent = brochureContent
+      .replace(/^```json\s*/, "")
+      .replace(/\s*```$/, "");
+
+    let jsonResponse;
+    try {
+      jsonResponse = JSON.parse(brochureContent);
+    } catch (parseError) {
+      console.error("Error parsing JSON:", parseError);
+      return res.status(500).json({ error: "Invalid JSON response from AI" });
+    }
+
+    console.log("Parsed jsonResponse", jsonResponse);
 
     res.status(200).json(jsonResponse);
   } catch (error) {
