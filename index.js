@@ -12,8 +12,11 @@ app.use(express.json());
 const openai = new OpenAI(process.env.OPENAI_API_KEY);
 
 const allowedOrigins = [
+  "*",
+  "https://www.agentcoach.ai",
   "https://brochure-pro.vercel.app",
   "http://localhost:3000",
+  "http://localhost:3001",
 ];
 
 app.use(
@@ -50,33 +53,48 @@ const validateInput = (req, res, next) => {
 };
 
 const generateOptimizedBrochurePrompt = (data) => `
-As an expert real estate copywriter, create compelling and concise brochure content for the following property:
+As an expert real estate copywriter with deep knowledge of local markets, create an exceptionally detailed and personalized property listing description for the following property:
 
 Property Details:
 - Listing Type: ${data.listingType}
-- Address: ${data.propertyAddress}
+- Full Address: ${data.propertyAddress}
 - Property Type: ${data.propertyType}
 - Location and Amenities: ${data.locationAmenities}
 - Property Description: ${data.propertyDescription}
 - Interior Features: ${data.interiorFeatures}
 - Exterior Features: ${data.exteriorFeatures}
 
-Create engaging, balanced content for a professional property brochure. The content should be concise yet impactful, highlighting the property's key features and appeal. Focus on the most attractive aspects and unique selling points.
+Your task is to craft an engaging, highly detailed, and personalized property listing that showcases this specific property's unique features and its location's benefits. Use the provided information to paint a vivid picture that will resonate with potential buyers.
 
-Provide the brochure content in the following JSON format:
+Guidelines:
+1. Thoroughly analyze the property's location, nearby amenities, and local attractions. Incorporate specific details about the neighborhood, highlighting what makes it special.
+2. Dive deep into the property's features, emphasizing unique selling points and how they contribute to a desirable lifestyle.
+3. Use sensory language to help potential buyers imagine themselves living in the property.
+4. Tailor the tone and style to match the property type and likely target audience.
+5. Include relevant local market insights if applicable (e.g., "in the highly sought-after [neighborhood name]").
+
+Provide the enhanced brochure content in the following JSON format:
 
 {
-  "headline": "A catchy, attention-grabbing headline (max 10 words)",
-  "tagline": "A brief, compelling tagline that complements the headline (max 15 words)",
-  "overview": "A concise summary highlighting key features and overall appeal (2-3 sentences)",
-  "keyFeatures": [
-    "5-6 standout features or selling points of the property (bullet points)"
+  "headline": "An attention-grabbing headline that incorporates a key feature or location benefit (max 12 words)",
+  "tagline": "A compelling tagline that complements the headline and adds another layer of appeal (max 20 words)",
+  "overview": "A detailed yet concise summary highlighting the property's most impressive features and its location benefits (3-4 sentences)",
+  "locationHighlights": [
+    "2-3 specific points about the property's location, nearby amenities, or community features (detailed bullet points)"
   ],
-  "end": "A concise yet comprehensive description combining location highlights, interior features, exterior and outdoor amenities, and any additional perks. Focus on the most impressive and unique aspects of each category. (3-4 sentences)",
-  "callToAction": "A compelling call-to-action statement encouraging potential buyers to take the next step (1 sentence)"
+  "propertyFeatures": {
+    "exterior": "A paragraph detailing the exterior features, architecture, and outdoor spaces (3-4 sentences)",
+    "interior": "A paragraph describing the interior layout, key rooms, and standout features (4-5 sentences)",
+    "uniqueSellingPoints": [
+      "2-3 standout features or selling points that make this property special (detailed bullet points)"
+    ]
+  },
+  "lifestyleDescription": "A paragraph painting a picture of the lifestyle this property offers, incorporating location benefits and property features (3-4 sentences)",
+  "marketInsight": "A brief statement about the property's value proposition in the current local market (1-2 sentences)",
+  "callToAction": "A compelling call-to-action encouraging potential buyers to take the next step, mentioning a key feature or benefit as motivation (1-2 sentences)"
 }
 
-Use vivid, descriptive language to create desire for the property. Be concise but impactful, focusing on the most attractive aspects. Ensure the content is factual, professional, and optimized for marketing purposes. The output should be a valid JSON object that can be parsed directly.
+Ensure each section is highly detailed and specific to this property and its location. The description should be vivid, factual, and optimized for marketing purposes while maintaining a professional tone. The output must be a valid JSON object that can be parsed directly.
 `;
 
 app.get("/", (req, res) => {
