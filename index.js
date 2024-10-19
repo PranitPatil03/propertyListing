@@ -3,6 +3,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import { OpenAI } from "openai";
 import { createListAndAddContacts } from "./new.js";
+import { getAllUsersController } from "./init.js";
 
 dotenv.config();
 
@@ -27,6 +28,8 @@ app.use(
     },
   })
 );
+
+app.get("/api/users", getAllUsersController);
 
 app.post("/api/list/send-user-data", async (req, res) => {
   const { listName } = req.body;

@@ -7,10 +7,10 @@ const ACTIVE_CAMPAIGN_API_URL =
 
 const fetchUserData = async () => {
   try {
-    const response = await axios.get(
-      "https://lumioadmin.ritesh.live/get-all-users"
-    );
+    const response = await axios.get("http://localhost:4000/api/users");
     const { users } = response.data;
+    console.log("users", response);
+    console.log("users", users.length);
     if (!Array.isArray(users)) {
       throw new Error("Invalid user data format");
     }
@@ -19,11 +19,7 @@ const fetchUserData = async () => {
       firstName: user.firstName || "",
       lastName: user.lastName || "",
       phone: user.phone || "",
-      account: user.publicMetaData?.trialStatus
-        ? "free"
-        : user.publicMetaData?.paymentInfo
-        ? "paid"
-        : "free"
+      account: user.publicMetaData?.trialStatus ? "free" : "paid",
     }));
   } catch (error) {
     console.error("Error fetching user data:", error);
