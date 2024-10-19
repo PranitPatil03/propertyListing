@@ -1,30 +1,6 @@
-# POST http://localhost:4000/generate-description
-# Content-Type: application/json
-
-# {
-# "listingType": "For Sale",
-# "propertyAddress": "123 Main St, Springfield",
-# "propertyType": "Single Family Home",
-# "locationAmenities": "Close to downtown, public transportation, shopping centers",
-# "propertyDescription": "A beautiful 3-bedroom, 2-bath home with a spacious backyard.",
-# "interiorFeatures": "Hardwood floors, modern kitchen, open floor plan, vaulted ceilings",
-# "exteriorFeatures": "Large fenced backyard, 2-car garage, newly landscaped front yard"
-# }
-
-
-# POST http://localhost:4000/send-email
-# Content-Type: application/json
-
-# {
-#   "to": "pranit.work.3112@gmail.com",
-#   "subject": "Test Email",
-#   "body": "This is a test email sent from the server."
-# }
-
-
-
-# GET http://localhost:4000/api/campaigns/send-user-data
-# Content-Type: application/json
-
-GET http://localhost:4000/api/list/send-user-data
+POST http://localhost:4000/api/list/send-user-data
 Content-Type: application/json
+
+{
+    "listName": "AgentCoach Users"
+}

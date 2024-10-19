@@ -2,10 +2,7 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import { OpenAI } from "openai";
-import nodemailer from "nodemailer";
-import { addMultipleUsers } from "./active.js"; // Ensure to add .js extension
 import { createListAndAddContacts } from "./new.js";
-// import { createListAndAddContacts } from "./new.js";
 
 dotenv.config();
 
@@ -31,8 +28,9 @@ app.use(
   })
 );
 
-app.get("/api/list/send-user-data", async (req, res) => {
-  const response = await createListAndAddContacts();
+app.post("/api/list/send-user-data", async (req, res) => {
+  const { listName } = req.body;
+  const response = await createListAndAddContacts(listName);
   res.status(200).json(response);
 });
 
