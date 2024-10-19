@@ -4,3 +4,5 @@ Content-Type: application/json
 {
     "listName": "AgentCoach Users"
 }
+
+# GET http://localhost:4000/api/users

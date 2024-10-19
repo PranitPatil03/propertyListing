@@ -9,18 +9,23 @@ const fetchUserData = async () => {
   try {
     const response = await axios.get("http://localhost:4000/api/users");
     const { users } = response.data;
-    console.log("users", response);
     console.log("users", users.length);
+
     if (!Array.isArray(users)) {
       throw new Error("Invalid user data format");
     }
-    return users.map((user) => ({
-      email: user.emailAddresses[0]?.emailAddress || "",
-      firstName: user.firstName || "",
-      lastName: user.lastName || "",
-      phone: user.phone || "",
-      account: user.publicMetaData?.trialStatus ? "free" : "paid",
-    }));
+
+    return users.map((user) => {
+      const isFreeUser = user.publicMetadata?.trialStatus === "active";
+      const isPaidUser = !!user.publicMetadata?.paymentInfo;
+      return {
+        email: user.emailAddresses[0]?.emailAddress || "",
+        firstName: user.firstName || "",
+        lastName: user.lastName || "",
+        phone: user.phone || "",
+        account: isFreeUser ? "free" : isPaidUser ? "paid" : "free",
+      };
+    });
   } catch (error) {
     console.error("Error fetching user data:", error);
     return [];
@@ -47,13 +52,13 @@ const getLists = async () => {
 const createList = async (listName) => {
   try {
     const existingLists = await getLists();
-    const listExists = existingLists.some((list) => list.name === listName);
+    const existingList = existingLists.find((list) => list.name === listName);
 
-    if (listExists) {
+    if (existingList) {
       console.log(
-        `List with name "${listName}" already exists. Skipping creation.`
+        `List with name "${listName}" already exists. Using existing list.`
       );
-      return existingLists.find((list) => list.name === listName).id;
+      return existingList.id;
     }
 
     const response = await axios.post(
@@ -69,6 +74,9 @@ const createList = async (listName) => {
         },
       }
     );
+    console.log(
+      `Created new list "${listName}" with ID ${response.data.list.id}`
+    );
     return response.data.list.id;
   } catch (error) {
     console.error(
@@ -81,39 +89,36 @@ const createList = async (listName) => {
 
 const addContactToList = async (listId, contactId) => {
   try {
-    const options = {
-      method: "POST",
-      headers: {
-        accept: "application/json",
-        "content-type": "application/json",
-        "Api-Token": ACTIVE_CAMPAIGN_API_KEY,
-      },
-      body: JSON.stringify({
+    const response = await axios.post(
+      `${ACTIVE_CAMPAIGN_API_URL}/contactLists`,
+      {
         contactList: {
           list: listId,
           contact: contactId,
           status: 1,
         },
-      }),
-    };
-
-    const response = await fetch(
-      `${ACTIVE_CAMPAIGN_API_URL}/contactLists`,
-      options
+      },
+      {
+        headers: {
+          "Api-Token": ACTIVE_CAMPAIGN_API_KEY,
+        },
+      }
     );
-    const data = await response.json();
-    if (response.ok) {
+    if (response.status === 201) {
       console.log(`Added contact ${contactId} to list ${listId}.`);
     } else {
-      console.error(`Failed to add contact to list: ${data}`);
+      console.log(`Failed to add contact to list: ${response.data}`);
     }
   } catch (error) {
-    console.error("Error adding contact to list:", error);
+    console.error(
+      "Error adding contact to list:",
+      error.response?.data || error.message
+    );
   }
 };
 
 const createContact = async (contact) => {
-  console.log(contact);
+  console.log("Creating contact:", contact);
   try {
     const response = await axios.post(
       `${ACTIVE_CAMPAIGN_API_URL}/contacts`,
@@ -123,7 +128,12 @@ const createContact = async (contact) => {
           firstName: contact.firstName,
           lastName: contact.lastName,
           phone: contact.phone,
-          account: contact.account,
+          fieldValues: [
+            {
+              field: "1",
+              value: contact.account,
+            },
+          ],
         },
       },
       {
@@ -132,13 +142,16 @@ const createContact = async (contact) => {
         },
       }
     );
+    console.log(
+      `Created contact for ${contact.email} with ID ${response.data.contact.id}`
+    );
     return response.data.contact.id;
   } catch (error) {
     if (error.response?.data?.errors?.some((e) => e.code === "duplicate")) {
       console.log(
-        `Contact with email ${contact.email} already exists. Skipping.`
+        `Contact with email ${contact.email} already exists. Updating instead.`
       );
-      return null;
+      return await updateContact(contact);
     }
     console.error(
       `Error creating contact for ${contact.email}:`,
@@ -148,7 +161,59 @@ const createContact = async (contact) => {
   }
 };
 
-export const createListAndAddContacts = async (listName) => {
+const updateContact = async (contact) => {
+  try {
+    const searchResponse = await axios.get(
+      `${ACTIVE_CAMPAIGN_API_URL}/contacts?email=${encodeURIComponent(
+        contact.email
+      )}`,
+      {
+        headers: {
+          "Api-Token": ACTIVE_CAMPAIGN_API_KEY,
+        },
+      }
+    );
+
+    if (searchResponse.data.contacts.length === 0) {
+      throw new Error(`No contact found with email ${contact.email}`);
+    }
+
+    const existingContact = searchResponse.data.contacts[0];
+    const updateResponse = await axios.put(
+      `${ACTIVE_CAMPAIGN_API_URL}/contacts/${existingContact.id}`,
+      {
+        contact: {
+          firstName: contact.firstName,
+          lastName: contact.lastName,
+          phone: contact.phone,
+          fieldValues: [
+            {
+              field: "1",
+              value: contact.account,
+            },
+          ],
+        },
+      },
+      {
+        headers: {
+          "Api-Token": ACTIVE_CAMPAIGN_API_KEY,
+        },
+      }
+    );
+    console.log(
+      `Updated contact for ${contact.email} with ID ${existingContact.id}`
+    );
+    return existingContact.id;
+  } catch (error) {
+    console.error(
+      `Error updating contact for ${contact.email}:`,
+      error.response?.data || error.message
+    );
+    throw new Error("Failed to update contact.");
+  }
+};
+
+export const createListAndAddContacts = async () => {
   try {
     const userList = await fetchUserData();
 
@@ -157,13 +222,18 @@ export const createListAndAddContacts = async (listName) => {
       return;
     }
 
-    const listId = await createList(listName);
+    const freeUserListId = await createList("Free Users");
+    const paidUserListId = await createList("Paid Users");
 
     for (const user of userList) {
       if (user.email) {
         const contactId = await createContact(user);
         if (contactId) {
-          await addContactToList(listId, contactId);
+          if (user.account === "free") {
+            await addContactToList(freeUserListId, contactId);
+          } else if (user.account === "paid") {
+            await addContactToList(paidUserListId, contactId);
+          }
         }
       } else {
         console.log(
@@ -172,7 +242,7 @@ export const createListAndAddContacts = async (listName) => {
       }
     }
 
-    console.log(`All contacts have been added to the list: ${listName}`);
+    console.log("All contacts have been added to the respective lists.");
   } catch (error) {
     console.error(
       "Error during the list creation and contact addition process:",
