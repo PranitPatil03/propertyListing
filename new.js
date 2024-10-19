@@ -1,9 +1,10 @@
 import axios from "axios";
+import dotenv from "dotenv";
 
-const ACTIVE_CAMPAIGN_API_KEY =
-  "1efc219e5755cf968f8cea66e1ce149f895b6ef18fde957590de461eea9218d20c609120";
-const ACTIVE_CAMPAIGN_API_URL =
-  "https://patilpranit3112.activehosted.com/api/3";
+dotenv.config();
+
+const ACTIVE_CAMPAIGN_API_KEY = process.env.ACTIVE_CAMPAIGN_API_KEY;
+const ACTIVE_CAMPAIGN_API_URL = process.env.ACTIVE_CAMPAIGN_API_URL;
 
 const fetchUserData = async () => {
   try {
