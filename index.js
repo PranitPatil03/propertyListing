@@ -1,8 +1,9 @@
-const express = require("express");
-const cors = require("cors");
-const dotenv = require("dotenv");
-const { OpenAI } = require("openai");
-const nodemailer = require("nodemailer");
+import express from "express";
+import cors from "cors";
+import dotenv from "dotenv";
+import { OpenAI } from "openai";
+import { createListAndAddContacts } from "./new.js";
+import { getAllUsersController } from "./init.js";
 
 dotenv.config();
 
@@ -31,16 +32,14 @@ app.use(
   })
 );
 
-const validateInput = (req, res, next) => {
-  const requiredFields = [
-    "listingType",
-    "propertyAddress",
-    "propertyType",
-    "locationAmenities",
-    "propertyDescription",
-    "interiorFeatures",
-    "exteriorFeatures",
-  ];
+app.get("/api/users", getAllUsersController);
+
+
+app.post("/api/list/send-user-data", async (req, res) => {
+  const { listName } = req.body;
+  const response = await createListAndAddContacts(listName);
+  res.status(200).json(response);
+});
 
   for (const field of requiredFields) {
     if (!req.body[field]) {
@@ -96,6 +95,7 @@ Provide the enhanced brochure content in the following JSON format:
 
 Ensure each section is highly detailed and specific to this property and its location. The description should be vivid, factual, and optimized for marketing purposes while maintaining a professional tone. The output must be a valid JSON object that can be parsed directly.
 `;
+
 
 app.get("/", (req, res) => {
   res.send("Server is healthy");
